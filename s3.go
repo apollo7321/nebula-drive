@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
 )
@@ -73,7 +74,6 @@ func (s *S3Client) List(bucket string, key string) ([]string, error) {
 	return append(folders, objects...), nil
 }
 
-// TODO: refactor to use Upload Manager, see: https://docs.aws.amazon.com/code-library/latest/ug/go_2_s3_code_examples.html
 func (s *S3Client) Upload(bucket string, key string, fileName string) error {
 	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
 	defer cancel()
@@ -82,13 +82,14 @@ func (s *S3Client) Upload(bucket string, key string, fileName string) error {
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
-	cfg := &s3.PutObjectInput{
+	uploader := manager.NewUploader(s.client)
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(key),
 		Body:   file,
-	}
-	_, err = s.client.PutObject(ctx, cfg)
+	})
 	if err != nil {
 		var apiErr smithy.APIError
 		if errors.As(err, &apiErr) && apiErr.ErrorCode() == "EntityTooLarge" {
