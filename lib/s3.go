@@ -1,4 +1,4 @@
-package main
+package lib
 
 import (
 	"context"
@@ -98,6 +98,26 @@ func (s *S3Client) Upload(bucket string, key string, fileName string) error {
 			return err
 		}
 	}
+
+	return nil
+}
+
+func (s *S3Client) Download(bucket string, key string, fileName string) error {
+	ctx, cancel := context.WithTimeout(s.ctx, s.timeout)
+	defer cancel()
+
+	file, err := os.Create(fileName)
+	if err != nil {
+		return err
+	}
+
+	downloader := manager.NewDownloader(s.client)
+	downloader.Download(ctx, file, &s3.GetObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+	})
+
+	// TODO: implement
 
 	return nil
 }
